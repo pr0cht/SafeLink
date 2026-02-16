@@ -43,20 +43,132 @@ def extract_url_features(text):
 # 3. DATA LOADING (HARMONIZATION LAYER)
 # ==========================================
 
-data = pd.DataFrame({
-    'text': [
-        "Urgent! Your account is locked. Click bit.ly/123", 
-        "Hey, are we still meeting for lunch?", 
-        "Win a free iPhone! Claim at http://scam.site"
-    ],
-    'label': [1, 0, 1]  # 1 = Malicious, 0 = Benign
-})
+SMS_DIR = 'sms_datasets/' 
+
+def load_and_harmonize():
+    dfs = []
+    
+    # --- 1. UCI SMS Spam (sms_spam.csv) ---
+    # Attributes: sms, label ("ham"/"spam")
+    try:
+        path = os.path.join(SMS_DIR, 'sms_spam.csv')
+        if os.path.exists(path):
+            df = pd.read_csv(path, encoding='latin-1')
+            df = df.rename(columns={'sms': 'text', 'label': 'raw_label'})
+            df['label'] = df['raw_label'].map({'ham': 0, 'spam': 1})
+            dfs.append(df[['text', 'label']])
+            print(f"Loaded UCI Spam: {len(df)} rows")
+    except Exception as e: print(f"Skipped UCI: {e}")
+
+    # --- 2. WildGuard (wildguard.csv) ---
+    # Attributes: prompt, adversarial, label ("harmful"/"benign"?)
+    try:
+        path = os.path.join(SMS_DIR, 'wildguard.csv')
+        if os.path.exists(path):
+            df = pd.read_csv(path)
+            df = df.rename(columns={'prompt': 'text', 'label': 'raw_label'})
+            # Assuming 'harmful' = 1, 'benign' = 0. Adjust if different.
+            df['label'] = df['raw_label'].apply(lambda x: 1 if str(x).lower() in ['harmful', 'malicious', 'true'] else 0)
+            dfs.append(df[['text', 'label']])
+            print(f"Loaded WildGuard: {len(df)} rows")
+    except Exception as e: print(f"Skipped WildGuard: {e}")
+
+    # --- 3. SmishTank (smishtank.csv) ---
+    # Attributes: MainText, Malicious (0/1?), Phishing...
+    try:
+        path = os.path.join(SMS_DIR, 'smishtank.csv')
+        if os.path.exists(path):
+            # 1. Load the file
+            df = pd.read_csv(path, encoding='utf-8', on_bad_lines='skip')
+            
+            # 2. Rename the message column to 'text'
+            # Note: Your attributes list showed 'Fulltext' and 'MainText'. 
+            # 'MainText' usually contains the clean body.
+            if 'MainText' in df.columns:
+                df = df.rename(columns={'MainText': 'text'})
+            elif 'Fulltext' in df.columns:
+                df = df.rename(columns={'Fulltext': 'text'})
+            
+            # 3. FORCE LABEL = 1
+            # We treat the entire file as a "Malicious" dataset source.
+            # We ignore the '0-15' counts because even '0' entries are usually spam.
+            df['label'] = 1 
+            
+            # 4. Filter and Append
+            dfs.append(df[['text', 'label']])
+            print(f"Loaded SmishTank: {len(df)} rows (All labeled as Malicious)")
+            
+    except Exception as e: print(f"Skipped SmishTank: {e}")
+
+    # --- 4. Kaggle Phishing (phishing.csv) ---
+    # Attributes: text, category, label ("phishing"/"benign")
+    try:
+        path = os.path.join(SMS_DIR, 'phishing.csv')
+        if os.path.exists(path):
+            df = pd.read_csv(path)
+            # Ensure we use the 'text' column
+            df['label'] = df['label'].apply(lambda x: 1 if str(x).lower() == 'phishing' else 0)
+            dfs.append(df[['text', 'label']])
+            print(f"Loaded Kaggle Phishing: {len(df)} rows")
+    except Exception as e: print(f"Skipped Kaggle Phishing: {e}")
+
+    # --- 5. Kaggle Smishing Eng (smishing_eng.csv) ---
+    # Attributes: v1 (label: "spam"), v2 (text)
+    try:
+        path = os.path.join(SMS_DIR, 'smishing_eng.csv')
+        if os.path.exists(path):
+            df = pd.read_csv(path, encoding='latin-1')
+            df = df.rename(columns={'v2': 'text', 'v1': 'raw_label'})
+            df['label'] = df['raw_label'].map({'spam': 1, 'ham': 0})
+            dfs.append(df[['text', 'label']])
+            print(f"Loaded Smishing Eng: {len(df)} rows")
+    except Exception as e: print(f"Skipped Smishing Eng: {e}")
+
+    # --- 6. Combined Dataset (combined_label_dataset.csv) ---
+    # Attributes: message, spam label, smishing label (1/0)
+    try:
+        path = os.path.join(SMS_DIR, 'combined_label_dataset.csv')
+        if os.path.exists(path):
+            df = pd.read_csv(path)
+            df = df.rename(columns={'message': 'text'})
+            # Prioritize 'smishing label' per your sample
+            df['label'] = pd.to_numeric(df['smishing label'], errors='coerce').fillna(0).astype(int)
+            dfs.append(df[['text', 'label']])
+            print(f"Loaded Combined Dataset: {len(df)} rows")
+    except Exception as e: print(f"Skipped Combined Dataset: {e}")
+
+    # --- Merge All ---
+    if not dfs:
+        raise ValueError("No datasets loaded! Check folder path.")
+    
+    full_data = pd.concat(dfs, ignore_index=True)
+    
+    # Clean: Drop rows with missing text or labels
+    full_data = full_data.dropna(subset=['text', 'label'])
+    
+    # [cite_start]Remove Duplicates [cite: 367]
+    full_data = full_data.drop_duplicates(subset=['text'])
+    
+    print("-" * 30)
+    print(f"TOTAL HARMONIZED DATA: {len(full_data)} samples")
+    print(full_data['label'].value_counts()) # Check balance
+    print("-" * 30)
+    
+    return full_data
+
+# Execute Loading
+data = load_and_harmonize()
 
 # Apply Normalization
 data['text'] = data['text'].apply(normalize_text)
 data['url_features'] = data['text'].apply(extract_url_features)
 
-# Prepare Inputs
+# ==========================================
+# 3.5. TOKENIZATION & SPLIT
+# ==========================================
+print("Tokenizing data... (This may take a moment)")
+
+# Initialize Tokenizer
 tokenizer = DistilBertTokenizer.from_pretrained(MODEL_NAME)
 
 def encode_texts(texts):
@@ -68,15 +180,31 @@ def encode_texts(texts):
         return_tensors='tf'
     )
 
-X_ids = encode_texts(data['text'])['input_ids']
-X_masks = encode_texts(data['text'])['attention_mask']
-X_urls = np.stack(data['url_features'].values)
-y = data['label'].values
+# 1. Convert Text to BERT Tokens
+encodings = encode_texts(data['text'])
+X_ids = encodings['input_ids']
+X_masks = encodings['attention_mask']
 
-# Stratified Split [cite: 260]
+# 2. Convert URL Features to Numpy Array
+X_urls = np.stack(data['url_features'].values)
+
+# 3. Get Labels
+y = data['label'].values.astype(np.float32)
+
+# 4. Perform Stratified Train/Test Split
+print("Splitting data...")
 X_train_ids, X_test_ids, X_train_masks, X_test_masks, X_train_urls, X_test_urls, y_train, y_test = train_test_split(
-    X_ids.numpy(), X_masks.numpy(), X_urls, y, test_size=0.3, stratify=y
+    X_ids.numpy(), 
+    X_masks.numpy(), 
+    X_urls, 
+    y, 
+    test_size=0.2, 
+    random_state=42,
+    stratify=y
 )
+
+print(f"Training Samples: {len(X_train_ids)}")
+print(f"Testing Samples: {len(X_test_ids)}")
 
 # ==========================================
 # 4. HYBRID MODEL ARCHITECTURE [cite: 406-409]

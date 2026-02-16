@@ -1,3 +1,5 @@
+sms_datasets:
+
 sms_spam.csv (UCI) 5500+ rows attributes:
 sms, label
 "Free entry in 2 a wkly comp to win FA Cup final tkts 21st May 2005. Text FA to 87121 to receive entry question(std txt rate)T&C's apply 08452810075over18's", 1
@@ -16,9 +18,26 @@ from 10 came in 2nd in our
 Airpods draw: f2gpy.info/
 RzNKEws Zve"	42003	Short Code	03/31/2022, 21:58:50	Costco: Daniel, the code 42003 printed on your receipt from 10 came in 2nd in our Airpods draw: f2gpy.info/RzNKEws Zve	f2gpy.info/RzNKEwsZve		f2gpy	info		0	0	0	0	0	Costco	Random Domain	Prize/Contest	f2gpy.info	NameCheap, Inc.	7/28/2021	7/31/2021
 
-
 phishing.csv (kaggle/ahmadtijjani) 1000 rows attributes:
 text, category, label
 Warning: Unusual login attempt detected on your Amazon. Verify your identity., urgency, phishing
 Attention: Your recent activity violates our Google policy. Verify your account to avoid penalties., authority, phishing
+
+smishing_eng.csv (kaggle/gokhansoyturk/) 5000 rows attributes:
+v1, v2
+spam, FreeMsg Hey there darling it's been 3 week's now and no word back! I'd like some fun you up for it still? Tb ok! XxX std chgs to send, å£1.50 to rcv
+
+combined_label_dataset.csv 80000 rows attributes:
+message, spam label, smishing label
+access>>>Credit AlertAmt: NGN 27, 1, 1
+
+url_datasets:
+
+phishing_site_urls.csv (kaggle/taruntiwarihp) 500000 rows attributes:
+URL, label
+nobell.it/70ffb52d079109dca5664cce6f317373782/login.SkyPe.com/en/cgi-bin/verification/login/70ffb52d079109dca5664cce6f317373/index.php?cmd=_profile-ach&outdated_page_tmpl=p/gen/failed-to-load&nav=0.5.1&login_access=1322408526, bad
+
+phishing_url_dataset.csv (kaggle/hassaanmustafavi) 450000 rows attributes:
+url, type
+http://helloyungmenqq.com/69.exe?1,	phishing
 
