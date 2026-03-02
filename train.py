@@ -7,17 +7,18 @@ from transformers import DistilBertTokenizer, TFDistilBertModel
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
 
-MAX_LEN = 64  # Fixed sequence length [cite: 411]
+MAX_LEN = 64  # Fixed sequence length 
 BATCH_SIZE = 32
 EPOCHS = 3
 MODEL_NAME = 'distilbert-base-uncased'
 
+# normalization
 def normalize_text(text):
     """
-    De-obfuscation layer [cite: 366-367]
+    De-obfuscation layer 
     Reverts common homoglyphs and cleans text.
     """
-    # Simple example of homoglyph revert (expand this list)
+    # homoglyph revert
     replacements = {
         'а': 'a', 'е': 'e', 'о': 'o', 'р': 'p', 'с': 'c' # Cyrillic to Latin
     }
@@ -26,12 +27,13 @@ def normalize_text(text):
         text = text.replace(cyr, lat)
     return text
 
+# url feature extraction (placeholder)
 def extract_url_features(text):
     """
-    URL Branch Feature Extraction [cite: 402-404]
+    URL Branch Feature Extraction
     Returns a numerical vector for the URL part.
     """
-    # Placeholder: In reality, you'd regex extract the URL first
+    # placeholder (requires more complex logic)
     has_url = 1 if 'http' in text else 0
     len_url = len([w for w in text.split() if 'http' in w])
     is_shortened = 1 if 'bit.ly' in text or 'tinyurl' in text else 0
@@ -39,10 +41,7 @@ def extract_url_features(text):
     # Returning a simple 3-feature vector for demonstration
     return np.array([has_url, len_url, is_shortened], dtype=np.float32)
 
-# ==========================================
-# 3. DATA LOADING (HARMONIZATION LAYER)
-# ==========================================
-
+# data loading
 SMS_DIR = 'sms_datasets/' 
 
 def load_and_harmonize():
@@ -163,10 +162,8 @@ data = load_and_harmonize()
 data['text'] = data['text'].apply(normalize_text)
 data['url_features'] = data['text'].apply(extract_url_features)
 
-# ==========================================
-# 3.5. TOKENIZATION & SPLIT
-# ==========================================
-print("Tokenizing data... (This may take a moment)")
+# tokenization test samples
+print("tokenizing data")
 
 # Initialize Tokenizer
 tokenizer = DistilBertTokenizer.from_pretrained(MODEL_NAME)
@@ -206,9 +203,7 @@ X_train_ids, X_test_ids, X_train_masks, X_test_masks, X_train_urls, X_test_urls,
 print(f"Training Samples: {len(X_train_ids)}")
 print(f"Testing Samples: {len(X_test_ids)}")
 
-# ==========================================
-# 4. HYBRID MODEL ARCHITECTURE [cite: 406-409]
-# ==========================================
+# hybrid model architecture
 def build_hybrid_model():
     # --- Branch A: Text (DistilBERT) ---
     input_ids = tf.keras.layers.Input(shape=(MAX_LEN,), dtype=tf.int32, name='input_ids')
@@ -217,21 +212,21 @@ def build_hybrid_model():
     bert_model = TFDistilBertModel.from_pretrained(MODEL_NAME)
     bert_model.trainable = False  # Freeze BERT layers for speed
     
-    # Get the [CLS] token embedding (768 dimensions) [cite: 400]
+    # Get the [CLS] token embedding (768 dimensions)
     bert_output = bert_model(input_ids, attention_mask=input_mask)[0][:, 0, :]
     
     # --- Branch B: URL Features ---
     input_url = tf.keras.layers.Input(shape=(3,), dtype=tf.float32, name='url_features')
     
     # --- Fusion Layer ---
-    # Concatenate Semantic Vector (768) + URL Vector (3) [cite: 419]
+    # Concatenate Semantic Vector (768) + URL Vector (3)
     concatenated = tf.keras.layers.Concatenate()([bert_output, input_url])
     
     # Dense Layer + ReLU
     dense = tf.keras.layers.Dense(64, activation='relu')(concatenated)
     dropout = tf.keras.layers.Dropout(0.2)(dense)
     
-    # Sigmoid Output [cite: 421]
+    # Sigmoid Output 
     output = tf.keras.layers.Dense(1, activation='sigmoid')(dropout)
     
     model = tf.keras.Model(inputs=[input_ids, input_mask, input_url], outputs=output)
@@ -241,9 +236,7 @@ def build_hybrid_model():
 model = build_hybrid_model()
 model.summary()
 
-# ==========================================
-# 5. TRAINING
-# ==========================================
+# training
 print("Starting Training...")
 history = model.fit(
     {'input_ids': X_train_ids, 'attention_mask': X_train_masks, 'url_features': X_train_urls},
@@ -253,9 +246,7 @@ history = model.fit(
     batch_size=BATCH_SIZE
 )
 
-# ==========================================
-# 6. TFLITE CONVERSION & QUANTIZATION [cite: 428-435]
-# ==========================================
+# tflite conversion / quantization
 print("Converting to TFLite with Quantization...")
 
 converter = tf.lite.TFLiteConverter.from_keras_model(model)
@@ -263,7 +254,7 @@ converter.optimizations = [tf.lite.Optimize.DEFAULT] # Dynamic Range Quantizatio
 
 tflite_model = converter.convert()
 
-# Save the file
+# save the file
 with open('safelink_model.tflite', 'wb') as f:
     f.write(tflite_model)
 
