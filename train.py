@@ -6,40 +6,163 @@ from datasets import load_dataset
 from transformers import DistilBertTokenizer, TFDistilBertModel
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
+import re
+import requests
 
 MAX_LEN = 64  # Fixed sequence length 
 BATCH_SIZE = 32
 EPOCHS = 3
 MODEL_NAME = 'distilbert-base-uncased'
 
+# Known URL shortener domains
+SHORTENER_DOMAINS = {'bit.ly', 'tinyurl.com', 't.co', 'goo.gl', 'is.gd', 'ow.ly'}
+
+# Extended homoglyph dictionary (Cyrillic and Greek to Latin)
+HOMOGLYPH_DICT = {
+    # Cyrillic to Latin
+    'а': 'a', 'ϲ': 'c', 'е': 'e', 'о': 'o', 'р': 'p', 'х': 'x', 'у': 'y',
+    'с': 'c', 'в': 'v', 'к': 'k', 'н': 'n', 'т': 't', 'м': 'm',
+    # Greek to Latin
+    'α': 'a', 'ν': 'n', 'ρ': 'p',
+}
+
+# ============================================================================
+# SECURITY PREPROCESSING FUNCTIONS
+# ============================================================================
+
+def handle_zero_width(text):
+    """
+    Detect and remove zero-width characters (U+200B, U+200C, U+200D, U+FEFF).
+    These invisible characters are used to break tokenization.
+    
+    Returns:
+        tuple: (cleaned_text, contains_zero_width_flag)
+    """
+    zero_width_pattern = re.compile(r'[\u200B-\u200D\uFEFF]')
+    contains_zero_width = 1 if zero_width_pattern.search(text) else 0
+    cleaned_text = zero_width_pattern.sub('', text)
+    return cleaned_text, contains_zero_width
+
+def refang_text(text):
+    """
+    Refang defanged URLs for proper detection.
+    Converts defanging patterns back to standard URL format:
+    - [.], (.), {.} → .
+    - hxxp/hxxps → http/https
+    """
+    # Replace defanged dots
+    text = re.sub(r'\[\.\]|\(\.\)|\{\.\}', '.', text)
+    # Replace defanged http
+    text = re.sub(r'(?i)hxxp', 'http', text)
+    return text
+
+def normalize_homoglyphs(text):
+    """
+    Normalize homoglyphs (look-alike characters from different scripts)
+    to their standard ASCII equivalents.
+    """
+    for homoglyph, standard in HOMOGLYPH_DICT.items():
+        text = text.replace(homoglyph, standard)
+    return text
+
+def extract_urls_with_regex(text):
+    """
+    Extract URLs from text using regex pattern.
+    """
+    url_pattern = re.compile(
+        r'https?://(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&/=]*)'
+    )
+    return url_pattern.findall(text)
+
+def resolve_url_if_shortened(url):
+    """
+    Resolve shortened URLs using HTTP HEAD requests.
+    Returns the final destination URL or original if resolution fails.
+    
+    Args:
+        url: The URL to check and potentially resolve
+    
+    Returns:
+        The final unmasked URL (or original if resolution fails)
+    """
+    # Check if URL contains a known shortener domain
+    if any(domain in url.lower() for domain in SHORTENER_DOMAINS):
+        try:
+            response = requests.head(
+                url,
+                allow_redirects=True,
+                timeout=1.0,
+                headers={'User-Agent': 'Mozilla/5.0'}
+            )
+            return response.url
+        except requests.RequestException:
+            # If HEAD request fails, return original URL
+            return url
+    return url
+
+def preprocess_smishing_message(raw_sms):
+    """
+    Complete preprocessing pipeline for SMS text.
+    Applies all security-focused transformations in sequence:
+    1. Clean invisible characters
+    2. Refang sneaky URLs
+    3. Normalize fake characters
+    4. Extract and resolve URLs
+    
+    Returns:
+        tuple: (cleaned_text, final_urls, security_features_dict)
+    """
+    # 1. Handle zero-width characters
+    text, has_zero_width = handle_zero_width(raw_sms)
+    
+    # 2. Refang URLs
+    text = refang_text(text)
+    
+    # 3. Normalize homoglyphs
+    text = normalize_homoglyphs(text)
+    
+    # 4. Extract URLs
+    extracted_urls = extract_urls_with_regex(text)
+    
+    # 5. Resolve shortened URLs
+    final_urls = [resolve_url_if_shortened(url) for url in extracted_urls]
+    
+    # Security features metadata
+    security_features = {
+        'has_zero_width': has_zero_width,
+        'url_count': len(final_urls),
+        'has_shortened_url': 1 if any(any(domain in url for domain in SHORTENER_DOMAINS) for url in extracted_urls) else 0,
+    }
+    
+    return text, final_urls, security_features
+
 # normalization
 def normalize_text(text):
     """
-    De-obfuscation layer 
+    De-obfuscation layer using extended homoglyph dictionary.
     Reverts common homoglyphs and cleans text.
     """
-    # homoglyph revert
-    replacements = {
-        'а': 'a', 'е': 'e', 'о': 'o', 'р': 'p', 'с': 'c' # Cyrillic to Latin
-    }
     text = str(text).lower()
-    for cyr, lat in replacements.items():
-        text = text.replace(cyr, lat)
+    text = normalize_homoglyphs(text)
     return text
 
-# url feature extraction (placeholder)
+# url feature extraction (enhanced with security features)
 def extract_url_features(text):
     """
-    URL Branch Feature Extraction
-    Returns a numerical vector for the URL part.
+    Enhanced URL Branch Feature Extraction
+    Returns a numerical vector for the URL part, including security indicators.
     """
-    # placeholder (requires more complex logic)
-    has_url = 1 if 'http' in text else 0
-    len_url = len([w for w in text.split() if 'http' in w])
-    is_shortened = 1 if 'bit.ly' in text or 'tinyurl' in text else 0
+    # Run the full preprocessing pipeline
+    cleaned_text, final_urls, security_features = preprocess_smishing_message(text)
     
-    # Returning a simple 3-feature vector for demonstration
-    return np.array([has_url, len_url, is_shortened], dtype=np.float32)
+    # Extract features
+    has_url = 1 if final_urls else 0
+    num_urls = len(final_urls)
+    has_zero_width = security_features['has_zero_width']
+    has_shortened = security_features['has_shortened_url']
+    
+    # Returning a 4-feature vector: [has_url, num_urls, has_zero_width, has_shortened]
+    return np.array([has_url, num_urls, has_zero_width, has_shortened], dtype=np.float32)
 
 # data loading
 SMS_DIR = 'sms_datasets/' 
@@ -81,16 +204,12 @@ def load_and_harmonize():
             df = pd.read_csv(path, encoding='utf-8', on_bad_lines='skip')
             
             # 2. Rename the message column to 'text'
-            # Note: Your attributes list showed 'Fulltext' and 'MainText'. 
-            # 'MainText' usually contains the clean body.
             if 'MainText' in df.columns:
                 df = df.rename(columns={'MainText': 'text'})
             elif 'Fulltext' in df.columns:
                 df = df.rename(columns={'Fulltext': 'text'})
             
             # 3. FORCE LABEL = 1
-            # We treat the entire file as a "Malicious" dataset source.
-            # We ignore the '0-15' counts because even '0' entries are usually spam.
             df['label'] = 1 
             
             # 4. Filter and Append
@@ -105,7 +224,7 @@ def load_and_harmonize():
         path = os.path.join(SMS_DIR, 'phishing.csv')
         if os.path.exists(path):
             df = pd.read_csv(path)
-            # Ensure we use the 'text' column
+            # Ensure use the 'text' column
             df['label'] = df['label'].apply(lambda x: 1 if str(x).lower() == 'phishing' else 0)
             dfs.append(df[['text', 'label']])
             print(f"Loaded Kaggle Phishing: {len(df)} rows")
@@ -158,9 +277,11 @@ def load_and_harmonize():
 # Execute Loading
 data = load_and_harmonize()
 
-# Apply Normalization
+# Apply Enhanced Preprocessing Pipeline
+print("Applying security preprocessing...")
 data['text'] = data['text'].apply(normalize_text)
 data['url_features'] = data['text'].apply(extract_url_features)
+print("Security preprocessing complete!")
 
 # tokenization test samples
 print("tokenizing data")
@@ -183,6 +304,7 @@ X_ids = encodings['input_ids']
 X_masks = encodings['attention_mask']
 
 # 2. Convert URL Features to Numpy Array
+# Note: Now includes [has_url, num_urls, has_zero_width, has_shortened] (4 features)
 X_urls = np.stack(data['url_features'].values)
 
 # 3. Get Labels
@@ -212,14 +334,14 @@ def build_hybrid_model():
     bert_model = TFDistilBertModel.from_pretrained(MODEL_NAME)
     bert_model.trainable = False  # Freeze BERT layers for speed
     
-    # Get the [CLS] token embedding (768 dimensions)
+    # Get the token embedding (768 dimensions)
     bert_output = bert_model(input_ids, attention_mask=input_mask)[0][:, 0, :]
     
-    # --- Branch B: URL Features ---
-    input_url = tf.keras.layers.Input(shape=(3,), dtype=tf.float32, name='url_features')
+    # --- Branch B: URL Features (now 4-dimensional: has_url, num_urls, has_zero_width, has_shortened) ---
+    input_url = tf.keras.layers.Input(shape=(4,), dtype=tf.float32, name='url_features')
     
     # --- Fusion Layer ---
-    # Concatenate Semantic Vector (768) + URL Vector (3)
+    # Concatenate Semantic Vector (768) + URL Vector (4)
     concatenated = tf.keras.layers.Concatenate()([bert_output, input_url])
     
     # Dense Layer + ReLU
