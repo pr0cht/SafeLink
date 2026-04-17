@@ -381,3 +381,132 @@ with open('safelink_model.tflite', 'wb') as f:
     f.write(tflite_model)
 
 print("Success! 'safelink_model.tflite' generated.")
+
+# sdssdsds
+
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report, confusion_matrix, accuracy_score, precision_score, recall_score, f1_score
+
+print("\n" + "="*50)
+print("STARTING OBJECTIVE 1 TESTING PHASE")
+print("="*50)
+
+# --- Ensure we have the raw text split for the Random Forest Baseline ---
+# We use the exact same random_state=42 so the test samples are identical to the neural network
+X_train_text, X_test_text, _, _ = train_test_split(
+    data['text'], data['label'], test_size=0.2, random_state=42, stratify=data['label']
+)
+
+# ==========================================
+# BASELINE 1: Random Forest (TF-IDF)
+# ==========================================
+print("\nTraining Baseline 1: Random Forest (TF-IDF)...")
+vectorizer = TfidfVectorizer(max_features=5000)
+X_train_tfidf = vectorizer.fit_transform(X_train_text)
+X_test_tfidf = vectorizer.transform(X_test_text)
+
+rf_model = RandomForestClassifier(n_estimators=100, random_state=42)
+rf_model.fit(X_train_tfidf, y_train)
+
+rf_predictions = rf_model.predict(X_test_tfidf)
+
+# ==========================================
+# BASELINE 2: Unimodal DistilBERT (Text Only)
+# ==========================================
+print("\nTraining Baseline 2: Unimodal DistilBERT (Text Only)...")
+def build_unimodal_model():
+    input_ids = tf.keras.layers.Input(shape=(MAX_LEN,), dtype=tf.int32, name='input_ids')
+    input_mask = tf.keras.layers.Input(shape=(MAX_LEN,), dtype=tf.int32, name='attention_mask')
+    
+    bert_model = TFDistilBertModel.from_pretrained(MODEL_NAME)
+    bert_model.trainable = False  
+    
+    bert_output = bert_model(input_ids, attention_mask=input_mask)[0][:, 0, :]
+    
+    dense = tf.keras.layers.Dense(64, activation='relu')(bert_output)
+    dropout = tf.keras.layers.Dropout(0.2)(dense)
+    output = tf.keras.layers.Dense(1, activation='sigmoid')(dropout)
+    
+    uni_model = tf.keras.Model(inputs=[input_ids, input_mask], outputs=output)
+    uni_model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+    return uni_model
+
+unimodal_model = build_unimodal_model()
+# Train quickly (you can lower epochs here just for the baseline if needed)
+unimodal_model.fit(
+    {'input_ids': X_train_ids, 'attention_mask': X_train_masks},
+    y_train, validation_split=0.15, epochs=EPOCHS, batch_size=BATCH_SIZE, verbose=1
+)
+
+# Predict probabilities and convert to binary classes (0 or 1)
+uni_probs = unimodal_model.predict({'input_ids': X_test_ids, 'attention_mask': X_test_masks})
+uni_predictions = (uni_probs > 0.5).astype(int)
+
+# ==========================================
+# THE PROPOSED SYSTEM: SafeLink Hybrid
+# ==========================================
+print("\nEvaluating Proposed System: SafeLink Hybrid...")
+# We use the 'model' you already trained earlier in your script
+hybrid_probs = model.predict({'input_ids': X_test_ids, 'attention_mask': X_test_masks, 'url_features': X_test_urls})
+hybrid_predictions = (hybrid_probs > 0.5).astype(int)
+
+# ==========================================
+# METRICS & CONFUSION MATRICES
+# ==========================================
+def print_metrics_and_plot_cm(y_true, y_pred, model_name):
+    print(f"\n--- {model_name} Performance ---")
+    print(f"Accuracy:  {accuracy_score(y_true, y_pred):.4f}")
+    print(f"Precision: {precision_score(y_true, y_pred):.4f}")
+    print(f"Recall:    {recall_score(y_true, y_pred):.4f}")
+    print(f"F1-Score:  {f1_score(y_true, y_pred):.4f}")
+    
+    # Generate Confusion Matrix
+    cm = confusion_matrix(y_true, y_pred)
+    plt.figure(figsize=(6,4))
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=['Benign', 'Threat'], yticklabels=['Benign', 'Threat'])
+    plt.title(f'Confusion Matrix: {model_name}')
+    plt.ylabel('Actual Label')
+    plt.xlabel('Predicted Label')
+    plt.tight_layout()
+    plt.savefig(f'cm_{model_name.replace(" ", "_")}.png')
+    plt.close()
+    print(f"Saved Confusion Matrix image: cm_{model_name.replace(' ', '_')}.png")
+
+print_metrics_and_plot_cm(y_test, rf_predictions, "Baseline 1 - Random Forest")
+print_metrics_and_plot_cm(y_test, uni_predictions, "Baseline 2 - Unimodal DistilBERT")
+print_metrics_and_plot_cm(y_test, hybrid_predictions, "Proposed - SafeLink Hybrid")
+
+print("\nTesting Phase Complete! Check your folder for the Confusion Matrix PNG files.")
+
+print("\nGenerating Error Analysis File...")
+
+# 1. Create a Pandas DataFrame to hold all the test data side-by-side
+results_df = pd.DataFrame({
+    'SMS_Text': X_test_text.values,
+    'True_Label': y_test.flatten(),  # 0 = Benign, 1 = Threat
+    'RF_Prediction': rf_predictions.flatten(),
+    'Unimodal_Prediction': uni_predictions.flatten(),
+    'Hybrid_Prediction': hybrid_predictions.flatten()
+})
+
+# 2. Add Helper Columns to easily filter your Excel file later!
+# Was the Hybrid model correct?
+results_df['Hybrid_Correct'] = results_df['True_Label'] == results_df['Hybrid_Prediction']
+
+# Did the Hybrid model catch a threat that the Text-Only model MISSED?
+# (This is exactly what you need to prove Objective 1 in your paper)
+results_df['Hybrid_Won_Where_Uni_Failed'] = (
+    (results_df['True_Label'] == results_df['Hybrid_Prediction']) & 
+    (results_df['True_Label'] != results_df['Unimodal_Prediction'])
+)
+
+# 3. Export to CSV (You can open this directly in Microsoft Excel)
+export_filename = "SafeLink_Test_Results.csv"
+results_df.to_csv(export_filename, index=False, encoding='utf-8')
+
+print(f"Success! All predictions exported to '{export_filename}'.")
+print("You can open this file in Excel to review every single message.")
