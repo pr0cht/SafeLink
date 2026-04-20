@@ -31,6 +31,7 @@ HOMOGLYPH_DICT = {
 # ============================================================================
 
 def handle_zero_width(text):
+    text = str(text)
     """
     Detect and remove zero-width characters (U+200B, U+200C, U+200D, U+FEFF).
     These invisible characters are used to break tokenization.
@@ -367,20 +368,22 @@ history = model.fit(
     epochs=EPOCHS,
     batch_size=BATCH_SIZE
 )
+# temp comment ------------------------------------------
+# # tflite conversion / quantization
+# print("Converting to TFLite with Quantization...")
 
-# tflite conversion / quantization
-print("Converting to TFLite with Quantization...")
+# converter = tf.lite.TFLiteConverter.from_keras_model(model)
+# converter.optimizations = [tf.lite.Optimize.DEFAULT] # Dynamic Range Quantization (FP32 -> INT8)
 
-converter = tf.lite.TFLiteConverter.from_keras_model(model)
-converter.optimizations = [tf.lite.Optimize.DEFAULT] # Dynamic Range Quantization (FP32 -> INT8)
+# tflite_model = converter.convert()
 
-tflite_model = converter.convert()
+# # save the file
+# if os.path.exists('safelink_model.tflite'):
+#     os.remove('safelink_model.tflite')
+# with open('safelink_model.tflite', 'wb') as f:
+#     f.write(tflite_model)
 
-# save the file
-with open('safelink_model.tflite', 'wb') as f:
-    f.write(tflite_model)
-
-print("Success! 'safelink_model.tflite' generated.")
+# print("Success! 'safelink_model.tflite' generated.")
 
 # sdssdsds
 
@@ -510,3 +513,124 @@ results_df.to_csv(export_filename, index=False, encoding='utf-8')
 
 print(f"Success! All predictions exported to '{export_filename}'.")
 print("You can open this file in Excel to review every single message.")
+
+# ==========================================
+# ADVERSARIAL RESILIENCE TESTING
+# ==========================================
+
+import pandas as pd
+import numpy as np
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+import random
+
+print("\n" + "="*50)
+print("STARTING OBJECTIVE 2: ADVERSARIAL RESILIENCE TESTING")
+print("="*50)
+
+# --- 1. Generate the Adversarial Test Set ---
+# We take only the malicious samples from our existing X_test set to see if we can trick the models into missing them.
+malicious_indices = np.where(y_test.flatten() == 1)[0]
+
+# Pick a random subset (e.g., 500 samples) to act as our adversarial attack group
+np.random.seed(42) # For reproducibility
+adv_test_indices = np.random.choice(malicious_indices, size=min(500, len(malicious_indices)), replace=False)
+
+adv_texts = X_test_text.iloc[adv_test_indices].copy().values
+adv_labels = y_test[adv_test_indices] # These are all 1 (Threat)
+
+# --- 2. The Attacker: Apply Obfuscation ---
+HOMOGLYPH_ATTACK = {'a': 'а', 'e': 'е', 'o': 'о', 'p': 'р', 'c': 'с', 'x': 'х', 'y': 'у'} # Latin to Cyrillic
+ZERO_WIDTH = '\u200B'
+
+def apply_obfuscation(text):
+    text = str(text)
+    # Attack 1: Homoglyph Injection (swap random letters)
+    for lat, cyr in HOMOGLYPH_ATTACK.items():
+        if random.random() > 0.5: # 50% chance to swap each specific character type
+            text = text.replace(lat, cyr)
+            
+    # Attack 2: Zero-Width Injection (break up a word)
+    words = text.split()
+    if words:
+        target_idx = random.randint(0, len(words)-1)
+        target_word = words[target_idx]
+        if len(target_word) > 2:
+            # Insert invisible space in the middle of a random word
+            mid = len(target_word) // 2
+            words[target_idx] = target_word[:mid] + ZERO_WIDTH + target_word[mid:]
+            text = " ".join(words)
+    return text
+
+# Apply the attack to create the corrupted dataset!
+print("Applying adversarial obfuscation (Homoglyphs & Zero-Width) to test samples...")
+corrupted_texts = np.array([apply_obfuscation(t) for t in adv_texts])
+
+# --- 3. Evaluate Unimodal DistilBERT (No pre-processing pipeline) ---
+print("\nEvaluating Baseline 2: Unimodal DistilBERT on Adversarial Data...")
+# We must tokenize the corrupted text EXACTLY as the raw model would receive it
+uni_adv_encodings = tokenizer(corrupted_texts.tolist(), padding='max_length', truncation=True, max_length=MAX_LEN, return_tensors='tf')
+uni_adv_probs = unimodal_model.predict({'input_ids': uni_adv_encodings['input_ids'], 'attention_mask': uni_adv_encodings['attention_mask']})
+uni_adv_preds = (uni_adv_probs > 0.5).astype(int)
+
+# --- 4. Evaluate SafeLink Hybrid (WITH Pre-processing pipeline) ---
+print("Evaluating Proposed System: SafeLink Hybrid on Adversarial Data...")
+# SafeLink uses its pipeline to clean the text and extract features before prediction
+hybrid_adv_cleaned_texts = []
+hybrid_adv_urls = []
+
+for text in corrupted_texts:
+    # 1. Pipeline cleans the text (removes zero-width, reverts homoglyphs)
+    cleaned, has_zw = handle_zero_width(text)
+    cleaned = refang_text(cleaned)
+    cleaned = normalize_homoglyphs(cleaned)
+    hybrid_adv_cleaned_texts.append(cleaned)
+    
+    # 2. Extract features (It should catch the Zero-Width flag!)
+    # We must format it exactly as a Pandas row to use your existing extract_url_features function
+    row = pd.Series({'text': cleaned, 'has_zero_width': has_zw})
+    url_feat = extract_url_features(row)
+    hybrid_adv_urls.append(url_feat)
+
+# Tokenize the CLEANED text
+hybrid_adv_encodings = tokenizer(hybrid_adv_cleaned_texts, padding='max_length', truncation=True, max_length=MAX_LEN, return_tensors='tf')
+hybrid_adv_urls_tensor = np.stack(hybrid_adv_urls)
+
+# Predict
+hybrid_adv_probs = model.predict({'input_ids': hybrid_adv_encodings['input_ids'], 'attention_mask': hybrid_adv_encodings['attention_mask'], 'url_features': hybrid_adv_urls_tensor})
+hybrid_adv_preds = (hybrid_adv_probs > 0.5).astype(int)
+
+# --- 5. Output Results ---
+print("\n--- ADVERSARIAL RESILIENCE RESULTS ---")
+print("Baseline 2 - Unimodal (Text Only, No Pipeline):")
+print(f"  Recall (Threats Caught): {recall_score(adv_labels, uni_adv_preds)*100:.2f}%")
+
+print("\nProposed - SafeLink Hybrid (With Defense Pipeline):")
+print(f"  Recall (Threats Caught): {recall_score(adv_labels, hybrid_adv_preds)*100:.2f}%")
+print("---------------------------------------")
+print("Note: Because all samples in this test are Threat (1), Accuracy equals Recall.")
+
+print("\nGenerating Adversarial Error Analysis File...")
+
+# 1. Create a Pandas DataFrame for the Adversarial Test Set
+adv_results_df = pd.DataFrame({
+    'Adversarial_SMS_Text': corrupted_texts,
+    'True_Label': adv_labels.flatten(),  # These are all 1 (Threat)
+    'Unimodal_Prediction': uni_adv_preds.flatten(),
+    'Hybrid_Prediction': hybrid_adv_preds.flatten()
+})
+
+# 2. Add Helper Columns to easily filter your Excel file later
+# Was the Hybrid model correct?
+adv_results_df['Hybrid_Correct'] = adv_results_df['True_Label'] == adv_results_df['Hybrid_Prediction']
+
+# Did the Hybrid model catch the adversarial threat that the Unimodal model MISSED?
+adv_results_df['Hybrid_Won_Where_Uni_Failed'] = (
+    (adv_results_df['True_Label'] == adv_results_df['Hybrid_Prediction']) & 
+    (adv_results_df['True_Label'] != adv_results_df['Unimodal_Prediction'])
+)
+
+# 3. Export to CSV
+adv_export_filename = "SafeLink_Adversarial_Results.csv"
+adv_results_df.to_csv(adv_export_filename, index=False, encoding='utf-8')
+
+print(f"Success! Adversarial predictions exported to '{adv_export_filename}'.")
