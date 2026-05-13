@@ -1,0 +1,50 @@
+Evaluating Proposed System: SafeLink Hybrid...
+514/514 [==============================] - 259s 501ms/step
+
+--- Baseline 1 - Random Forest Performance ---
+Accuracy:  0.9579
+Precision: 0.9339
+Recall:    0.9209
+F1-Score:  0.9273
+Saved Confusion Matrix image: cm_Baseline_1_-_Random_Forest.png
+
+--- Baseline 2 - Unimodal DistilBERT Performance ---
+Accuracy:  0.9175
+Precision: 0.8158
+Recall:    0.9269
+F1-Score:  0.8678
+Saved Confusion Matrix image: cm_Baseline_2_-_Unimodal_DistilBERT.png
+
+--- Proposed - SafeLink Hybrid Performance ---
+Accuracy:  0.9129
+Precision: 0.7915
+Recall:    0.9525
+F1-Score:  0.8646
+Saved Confusion Matrix image: cm_Proposed_-_SafeLink_Hybrid.png
+
+Testing Phase Complete! Check your folder for the Confusion Matrix PNG files.
+
+Generating Error Analysis File...
+Success! All predictions exported to 'SafeLink_Test_Results.csv'.
+You can open this file in Excel to review every single message.
+
+==================================================
+STARTING OBJECTIVE 2: ADVERSARIAL RESILIENCE TESTING
+==================================================
+Applying adversarial obfuscation (Homoglyphs & Zero-Width) to test samples...
+
+Evaluating Baseline 2: Unimodal DistilBERT on Adversarial Data...
+16/16 [==============================] - 8s 487ms/step
+Evaluating Proposed System: SafeLink Hybrid on Adversarial Data...
+16/16 [==============================] - 8s 506ms/step
+
+--- ADVERSARIAL RESILIENCE RESULTS ---
+Baseline 2 - Unimodal (Text Only, No Pipeline):
+  Recall (Threats Caught): 26.80%
+
+Proposed - SafeLink Hybrid (With Defense Pipeline):
+  Recall (Threats Caught): 94.80%
+---------------------------------------
+Note: Because all samples in this test are Threat (1), Accuracy equals Recall.
+
+Generating Adversarial Error Analysis File...

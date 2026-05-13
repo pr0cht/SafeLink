@@ -1,0 +1,230 @@
+2026-05-12 10:35:32.461366: I tensorflow/core/util/port.cc:113] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING:tensorflow:From C:\Users\oneze\Documents\SafeLink\.venv\lib\site-packages\keras\src\losses.py:2976: The name tf.losses.sparse_softmax_cross_entropy is deprecated. Please use tf.compat.v1.losses.sparse_softmax_cross_entropy instead.
+
+Loaded UCI Spam: 5574 rows
+Loaded WildGuard: 1725 rows
+Loaded SmishTank: 1062 rows (All labeled as Malicious)
+Loaded Kaggle Phishing: 1000 rows
+Loaded Smishing Eng: 5572 rows
+Loaded Combined Dataset: 84863 rows
+Loaded Synthetic Transactional transactional_sms_dataset.csv: 100 rows
+Loaded Synthetic Transactional transactional_sms_dataset_500.csv: 500 rows
+------------------------------
+MAIN DATASET: 76406 samples
+label
+0.0    52399
+1.0    24007
+Name: count, dtype: int64
+------------------------------
+
+TRANSACTIONAL HAM (before oversampling): 582 samples
+TRANSACTIONAL HAM (after 10x oversampling): 5820 samples
+------------------------------
+
+FINAL HARMONIZED DATASET: 82226 samples
+label
+0.0    58219
+1.0    24007
+Name: count, dtype: int64
+------------------------------
+
+==================================================
+STEP: Masking all digits in text (OTP codes, account numbers)...
+==================================================
+Digit masking complete on 82226 samples
+--------------------------------------------------
+
+Applying security preprocessing...
+Security preprocessing complete!
+tokenizing data
+C:\Users\oneze\Documents\SafeLink\.venv\lib\site-packages\huggingface_hub\file_download.py:949: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+  warnings.warn(
+2026-05-12 10:47:07.105241: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: SSE SSE2 SSE3 SSE4.1 SSE4.2 AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+Splitting data...
+Training Samples: 65780
+Testing Samples: 16446
+WARNING:tensorflow:From C:\Users\oneze\Documents\SafeLink\.venv\lib\site-packages\keras\src\backend.py:1398: The name tf.executing_eagerly_outside_functions is deprecated. Please use tf.compat.v1.executing_eagerly_outside_functions instead.
+
+C:\Users\oneze\Documents\SafeLink\.venv\lib\site-packages\huggingface_hub\file_download.py:949: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+  warnings.warn(
+Some weights of the PyTorch model were not used when initializing the TF 2.0 model TFDistilBertModel: ['vocab_layer_norm.weight', 'vocab_layer_norm.bias', 'vocab_transform.weight', 'vocab_transform.bias', 'vocab_projector.bias']
+- This IS expected if you are initializing TFDistilBertModel from a PyTorch model trained on another task or with another architecture (e.g. initializing a TFBertForSequenceClassification model from a BertForPreTraining model).
+- This IS NOT expected if you are initializing TFDistilBertModel from a PyTorch model that you expect to be exactly identical (e.g. initializing a TFBertForSequenceClassification model from a BertForSequenceClassification model).
+All the weights of TFDistilBertModel were initialized from the PyTorch model.
+If your task is similar to the task the model of the checkpoint was trained on, you can already use TFDistilBertModel for predictions without further training.
+WARNING:tensorflow:From C:\Users\oneze\Documents\SafeLink\.venv\lib\site-packages\keras\src\optimizers\__init__.py:309: The name tf.train.Optimizer is deprecated. Please use tf.compat.v1.train.Optimizer instead.
+
+Model: "model"
+__________________________________________________________________________________________________
+ Layer (type)                Output Shape                 Param #   Connected to                  
+==================================================================================================
+ input_ids (InputLayer)      [(None, 64)]                 0         []                            
+                                                                                                  
+ attention_mask (InputLayer  [(None, 64)]                 0         []                            
+ )                                                                                                
+                                                                                                  
+ tf_distil_bert_model (TFDi  TFBaseModelOutput(last_hid   6636288   ['input_ids[0][0]',           
+ stilBertModel)              den_state=(None, 64, 768),   0          'attention_mask[0][0]']      
+                              hidden_states=None, atten                                           
+                             tions=None)                                                          
+                                                                                                  
+ tf.__operators__.getitem (  (None, 768)                  0         ['tf_distil_bert_model[0][0]']
+ SlicingOpLambda)                                                                                 
+                                                                                                  
+ url_features (InputLayer)   [(None, 4)]                  0         []                            
+                                                                                                  
+ concatenate (Concatenate)   (None, 772)                  0         ['tf.__operators__.getitem[0][
+                                                                    0]',                          
+                                                                     'url_features[0][0]']        
+                                                                                                  
+ dense (Dense)               (None, 64)                   49472     ['concatenate[0][0]']         
+                                                                                                  
+ dropout_19 (Dropout)        (None, 64)                   0         ['dense[0][0]']               
+                                                                                                  
+ dense_1 (Dense)             (None, 1)                    65        ['dropout_19[0][0]']          
+                                                                                                  
+==================================================================================================
+Total params: 66412417 (253.34 MB)
+Trainable params: 49537 (193.50 KB)
+Non-trainable params: 66362880 (253.15 MB)
+__________________________________________________________________________________________________
+Starting Training...
+Using class weights: {0: 0.7061728395061728, 1: 1.7125748502994012}
+Epoch 1/3
+WARNING:tensorflow:From C:\Users\oneze\Documents\SafeLink\.venv\lib\site-packages\keras\src\utils\tf_utils.py:492: The name tf.ragged.RaggedTensorValue is deprecated. Please use tf.compat.v1.ragged.RaggedTensorValue instead.
+
+WARNING:tensorflow:From C:\Users\oneze\Documents\SafeLink\.venv\lib\site-packages\keras\src\engine\base_layer_utils.py:384: The name tf.executing_eagerly_outside_functions is deprecated. Please use tf.compat.v1.executing_eagerly_outside_functions instead.
+
+   1/1748 [..............................] - ETA: 4:23:21 - loss: 0.7143 - accuracy:   2/1748 [..............................] - ETA: 19:52 - loss: 0.6696 - accuracy: 0   3/1748 [..............................] - ETA: 19:05 - loss: 0.6245 - accuracy: 0   4/1748 [..............................] - ETA: 19:48 - loss: 0.6017 - accuracy: 0   5/1748 [..............................] - ETA: 19:29 - loss: 0.5843 - accuracy: 0   6/1748 [..............................] - ETA: 18:59 - loss: 0.6167 - accuracy: 0   7/1748 [..............................] - ETA: 18:47 - loss: 0.5988 - accuracy: 0   8/1748 [..............................] - ETA: 18:42 - loss: 0.5835 - accuracy: 0   9/1748 [..............................] - ETA: 18:58 - loss: 0.5725 - accuracy: 0  10/1748 [..............................] - ETA: 18:47 - loss: 0.5552 - accuracy: 0  11/1748 [..............................] - ETA: 18:44 - loss: 0.5349 - accuracy: 0  12/1748 [..............................] - ETA: 18:37 - loss: 0.5208 - accuracy: 0  13/1748 [..............................] - ETA: 18:31 - loss: 0.5095 - accuracy: 0  14/1748 [..............................] - ETA: 18:27 - loss: 0.5020 - accuracy: 0  15/1748 [..............................] - ETA: 18:20 - loss: 0.4882 - accuracy: 0  16/1748 [..............................] - ETA: 18:08 - loss: 0.4866 - accuracy: 0  17/1748 [..............................] - ETA: 18:03 - loss: 0.4820 - accuracy: 0  18/1748 [..............................] - ETA: 17:53 - loss: 0.4748 - accuracy: 0  19/1748 [..............................] - ETA: 17:45 - loss: 0.4728 - accuracy: 0  20/1748 [..............................] - ETA: 17:37 - loss: 0.4755 - accuracy: 0  21/1748 [..............................] - ETA: 17:30 - loss: 0.4659 - accuracy: 0  22/1748 [..............................] - ETA: 17:24 - loss: 0.4600 - accuracy: 0  23/1748 [..............................] - ETA: 17:26 - loss: 0.4539 - accuracy: 0  24/1748 [..............................] - ETA: 17:23 - loss: 0.4566 - accuracy: 0  25/1748 [..............................] - ETA: 17:23 - loss: 0.4514 - accuracy: 0  26/1748 [..............................] - ETA: 17:21 - loss: 0.4519 - accuracy: 0  27/1748 [..............................] - ETA: 17:18 - loss: 0.4498 - accuracy: 0  28/1748 [..............................] - ETA: 17:18 - loss: 0.4392 - accuracy: 0  29/1748 [..............................] - ETA: 17:17 - loss: 0.4398 - accuracy: 0  30/1748 [..............................] - ETA: 17:16 - loss: 0.4345 - accuracy: 0  31/1748 [..............................] - ETA: 17:21 - loss: 0.4287 - accuracy: 0  32/1748 [..............................] - ETA: 17:23 - loss: 0.4287 - accuracy: 0  33/1748 [..............................] - ETA: 17:22 - loss: 0.4278 - accuracy: 0  34/1748 [..............................] - ETA: 17:20 - loss: 0.4200 - accuracy: 0  35/1748 [..............................] - ETA: 17:25 - loss: 0.4133 - accuracy: 0  36/1748 [..............................] - ETA: 17:27 - loss: 0.4253 - accuracy: 0  37/1748 [..............................] - ETA: 17:28 - loss: 0.4197 - accuracy: 0  38/1748 [..............................] - ETA: 17:34 - loss: 0.4136 - accuracy: 0  39/1748 [..............................] - ETA: 17:36 - loss: 0.4104 - accuracy: 0  40/1748 [..............................] - ETA: 17:36 - loss: 0.4154 - accuracy: 0  41/1748 [..............................] - ETA: 17:38 - loss: 0.4115 - accuracy: 0  42/1748 [..............................] - ETA: 17:37 - loss: 0.4072 - accuracy: 0  43/1748 [..............................] - ETA: 17:40 - loss: 0.4022 - accuracy: 0  44/1748 [..............................] - ETA: 17:40 - loss: 0.4016 - accuracy: 0  45/1748 [..............................] - ETA: 17:38 - loss: 0.3957 - accuracy: 0  46/1748 [..............................] - ETA: 17:37 - loss: 0.3941 - accuracy: 0  47/1748 [..............................] - ETA: 17:37 - loss: 0.3908 - accuracy: 0  48/1748 [..............................] - ETA: 17:36 - loss: 0.3919 - accuracy: 0  49/1748 [..............................] - ETA: 17:34 - loss: 0.3925 - accuracy: 0  50/1748 [..............................] - ETA: 17:33 - loss: 0.3922 - accuracy: 0  51/1748 [..............................] - ETA: 17:34 - loss: 0.3897 - accuracy: 0  52/1748 [..............................] - ETA: 17:32 - loss: 0.3881 - accuracy: 0  53/1748 [..............................] - ETA: 17:30 - loss: 0.3894 - accuracy: 0  54/1748 [..............................] - ETA: 17:28 - loss: 0.3875 - accuracy: 0  55/1748 [..............................] - ETA: 17:26 - loss: 0.3869 - accuracy: 0  56/1748 [..............................] - ETA: 17:24 - loss: 0.3891 - accuracy: 0  57/1748 [..............................] - ETA: 17:22 - loss: 0.3880 - accuracy: 0  58/1748 [..............................] - ETA: 17:21 - loss: 0.3858 - accuracy: 0  59/1748 [>.............................] - ETA: 17:19 - loss: 0.3870 - accuracy: 0  60/1748 [>.............................] - ETA: 17:18 - loss: 0.3890 - accuracy: 0  61/1748 [>.............................] - ETA: 17:17 - loss: 0.3908 - accuracy: 0  62/1748 [>.............................] - ETA: 17:16 - loss: 0.3914 - accuracy: 0  63/1748 [>.............................] - ETA: 17:16 - loss: 0.3920 - accuracy: 0  64/1748 [>.............................] - ETA: 17:17 - loss: 0.3897 - accuracy: 01748/1748 [==============================] - 1199s 681ms/step - loss: 0.2405 - accuracy: 0.8936 - val_loss: 0.2337 - val_accuracy: 0.8928
+Epoch 2/3
+1748/1748 [==============================] - 1168s 668ms/step - loss: 0.2080 - accuracy: 0.9019 - val_loss: 0.2137 - val_accuracy: 0.9017
+Epoch 3/3
+1748/1748 [==============================] - 1309s 749ms/step - loss: 0.1996 - accuracy: 0.9052 - val_loss: 0.2181 - val_accuracy: 0.9031
+Converting to TFLite with Quantization...
+WARNING:tensorflow:From C:\Users\oneze\Documents\SafeLink\.venv\lib\site-packages\keras\src\saving\legacy\saved_model\save_impl.py:66: The name tf.logging.warning is deprecated. Please use tf.compat.v1.logging.warning instead.
+
+WARNING:tensorflow:Skipping full serialization of Keras layer <keras.src.layers.regularization.dropout.Dropout object at 0x00000295C0C37580>, because it is not built.
+WARNING:tensorflow:Skipping full serialization of Keras layer <keras.src.layers.regularization.dropout.Dropout object at 0x00000295C0E61810>, because it is not built.
+WARNING:tensorflow:Skipping full serialization of Keras layer <keras.src.layers.regularization.dropout.Dropout object at 0x00000295C5408520>, because it is not built.
+WARNING:tensorflow:Skipping full serialization of Keras layer <keras.src.layers.regularization.dropout.Dropout object at 0x00000295C540B1F0>, because it is not built.
+WARNING:tensorflow:Skipping full serialization of Keras layer <keras.src.layers.regularization.dropout.Dropout object at 0x00000295C5415F00>, because it is not built.
+WARNING:tensorflow:Skipping full serialization of Keras layer <keras.src.layers.regularization.dropout.Dropout object at 0x00000295C5418C10>, because it is not built.
+2026-05-12 11:49:18.445720: W tensorflow/compiler/mlir/lite/python/tf_tfl_flatbuffer_helpers.cc:378] Ignored output_format.
+2026-05-12 11:49:18.449203: W tensorflow/compiler/mlir/lite/python/tf_tfl_flatbuffer_helpers.cc:381] Ignored drop_control_dependency.
+2026-05-12 11:49:18.469944: I tensorflow/cc/saved_model/reader.cc:83] Reading SavedModel from: C:\Users\oneze\AppData\Local\Temp\tmpo4np_vzm
+2026-05-12 11:49:18.541534: I tensorflow/cc/saved_model/reader.cc:51] Reading meta graph with tags { serve }
+2026-05-12 11:49:18.541887: I tensorflow/cc/saved_model/reader.cc:146] Reading SavedModel debug info (if present) from: C:\Users\oneze\AppData\Local\Temp\tmpo4np_vzm
+2026-05-12 11:49:18.711432: I tensorflow/compiler/mlir/mlir_graph_optimization_pass.cc:388] MLIR V1 optimization pass is not enabled
+2026-05-12 11:49:18.745516: I tensorflow/cc/saved_model/loader.cc:233] Restoring SavedModel bundle.
+2026-05-12 11:49:19.884024: I tensorflow/cc/saved_model/loader.cc:217] Running initialization op on SavedModel bundle at path: C:\Users\oneze\AppData\Local\Temp\tmpo4np_vzm
+2026-05-12 11:49:20.283154: I tensorflow/cc/saved_model/loader.cc:316] SavedModel load for tags { serve }; Status: success: OK. Took 1812255 microseconds.
+2026-05-12 11:49:21.085901: I tensorflow/compiler/mlir/tensorflow/utils/dump_mlir_util.cc:269] disabling MLIR crash reproducer, set env var `MLIR_CRASH_REPRODUCER_DIRECTORY` to enable.
+Summary on the non-converted ops:
+---------------------------------
+ * Accepted dialects: tfl, builtin, func
+ * Non-Converted Ops: 86, Total Ops 711, % non-converted = 12.10 %
+ * 86 ARITH ops
+
+- arith.constant:   86 occurrences  (f32: 71, i32: 15)
+
+
+
+  (f32: 81)
+  (f32: 12)
+  (f32: 1)
+  (f32: 1, i32: 24)
+  (f32: 1)
+  (f32: 38)
+  (uq_8: 1, i32: 48)
+  (f32: 6)
+  (f32: 1)
+  (f32: 26)
+  (f32: 51)
+
+  (i32: 42)
+  (uq_8: 38)
+  (i32: 48)
+  (f32: 90)
+  (f32: 13)
+  (i32: 24)
+  (f32: 6)
+  (f32: 13)
+  (f32: 1, i32: 6)
+  (f32: 25)
+  (f32: 24)
+Success! 'safelink_model.tflite' generated.
+
+==================================================
+STARTING OBJECTIVE 1 TESTING PHASE
+==================================================
+
+Training Baseline 1: Random Forest (TF-IDF)...
+
+Training Baseline 2: Unimodal DistilBERT (Text Only)...
+C:\Users\oneze\Documents\SafeLink\.venv\lib\site-packages\huggingface_hub\file_download.py:949: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+  warnings.warn(
+Some weights of the PyTorch model were not used when initializing the TF 2.0 model TFDistilBertModel: ['vocab_layer_norm.weight', 'vocab_layer_norm.bias', 'vocab_transform.weight', 'vocab_transform.bias', 'vocab_projector.bias']
+- This IS expected if you are initializing TFDistilBertModel from a PyTorch model trained on another task or with another architecture (e.g. initializing a TFBertForSequenceClassification model from a BertForPreTraining model).
+- This IS NOT expected if you are initializing TFDistilBertModel from a PyTorch model that you expect to be exactly identical (e.g. initializing a TFBertForSequenceClassification model from a BertForSequenceClassification model).
+All the weights of TFDistilBertModel were initialized from the PyTorch model.
+If your task is similar to the task the model of the checkpoint was trained on, you can already use TFDistilBertModel for predictions without further training.
+Epoch 1/3
+1748/1748 [==============================] - 1647s 938ms/step - loss: 0.2304 - accuracy: 0.8978 - val_loss: 0.2045 - val_accuracy: 0.9083
+Epoch 2/3
+1748/1748 [==============================] - 1483s 849ms/step - loss: 0.2004 - accuracy: 0.9108 - val_loss: 0.1920 - val_accuracy: 0.9110
+Epoch 3/3
+1748/1748 [==============================] - 1478s 846ms/step - loss: 0.1896 - accuracy: 0.9156 - val_loss: 0.1858 - val_accuracy: 0.9160
+514/514 [==============================] - 322s 618ms/step
+
+Evaluating Proposed System: SafeLink Hybrid...
+514/514 [==============================] - 313s 602ms/step
+
+--- Baseline 1 - Random Forest Performance ---
+Accuracy:  0.9565
+Precision: 0.9338
+Recall:    0.9161
+F1-Score:  0.9248
+Saved Confusion Matrix image: cm_Baseline_1_-_Random_Forest.png
+
+--- Baseline 2 - Unimodal DistilBERT Performance ---
+Accuracy:  0.9145
+Precision: 0.8016
+Recall:    0.9398
+F1-Score:  0.8652
+Saved Confusion Matrix image: cm_Baseline_2_-_Unimodal_DistilBERT.png
+
+--- Proposed - SafeLink Hybrid Performance ---
+Accuracy:  0.9044
+Precision: 0.7652
+Recall:    0.9702
+F1-Score:  0.8556
+Saved Confusion Matrix image: cm_Proposed_-_SafeLink_Hybrid.png
+
+Testing Phase Complete! Check your folder for the Confusion Matrix PNG files.
+
+Generating Error Analysis File...
+Success! All predictions exported to 'SafeLink_Test_Results.csv'.
+You can open this file in Excel to review every single message.
+
+==================================================
+STARTING OBJECTIVE 2: ADVERSARIAL RESILIENCE TESTING
+==================================================
+Applying adversarial obfuscation (Homoglyphs & Zero-Width) to test samples...
+
+Evaluating Baseline 2: Unimodal DistilBERT on Adversarial Data...
+16/16 [==============================] - 10s 596ms/step
+Evaluating Proposed System: SafeLink Hybrid on Adversarial Data...
+16/16 [==============================] - 9s 577ms/step
+
+--- ADVERSARIAL RESILIENCE RESULTS ---
+Baseline 2 - Unimodal (Text Only, No Pipeline):
+  Recall (Threats Caught): 36.80%
+
+Proposed - SafeLink Hybrid (With Defense Pipeline):
+  Recall (Threats Caught): 97.80%
+---------------------------------------
+Note: Because all samples in this test are Threat (1), Accuracy equals Recall.
+
+Generating Adversarial Error Analysis File...
+Success! Adversarial predictions exported to 'SafeLink_Adversarial_Results.csv'.
