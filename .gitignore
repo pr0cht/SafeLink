@@ -1,1 +1,4 @@
 .venv/
+url_datasets/
+url_datasets
+deployment_aws
